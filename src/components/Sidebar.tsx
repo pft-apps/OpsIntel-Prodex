@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Info, PenTool, Database, Settings, PieChart, Gauge, ChevronLeft, ChevronRight, History, FileJson, Calendar } from 'lucide-react';
+import { Info, PenTool, Database, Settings, PieChart, Gauge, ChevronLeft, ChevronRight, History, FileJson, Calendar, ClipboardList } from 'lucide-react';
 import { MasterData, ActivityLog, SystemLog } from '../types';
 
 interface SidebarProps {
@@ -154,6 +154,24 @@ export default function Sidebar({
                 {!isCollapsed && <span>Activity Log History</span>}
               </div>
             </button>
+
+            {/* Activity Planner */}
+            <button
+              onClick={() => onTabChange('planner')}
+              title="Activity Planner"
+              className={`w-full text-left rounded-lg text-xs font-semibold flex items-center group transition-all duration-200 cursor-pointer ${
+                isCollapsed ? 'justify-center py-3 px-2' : 'justify-between px-3 py-2.5'
+              } ${
+                currentTab === 'planner'
+                  ? 'bg-brand-20 text-white shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-accent-purple/20'
+              }`}
+            >
+              <div className={`flex items-center ${isCollapsed ? 'space-x-0' : 'space-x-3'}`}>
+                <ClipboardList className={`h-4 w-4 shrink-0 transition-colors ${currentTab === 'planner' ? 'text-white' : 'text-slate-400 group-hover:text-accent-turquoise'}`} />
+                {!isCollapsed && <span>Activity Planner</span>}
+              </div>
+            </button>
           </nav>
         </div>
 
@@ -214,6 +232,24 @@ export default function Sidebar({
               </div>
             )}
             <nav className="space-y-1">
+              {/* Team Activity Plans */}
+              <button
+                onClick={() => onTabChange('team-planner')}
+                title="Team Activity Plans"
+                className={`w-full text-left rounded-lg text-xs font-semibold flex items-center group transition-all duration-200 cursor-pointer ${
+                  isCollapsed ? 'justify-center py-3 px-2' : 'justify-between px-3 py-2.5'
+                } ${
+                  currentTab === 'team-planner'
+                    ? 'bg-brand-20 text-white shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-accent-purple/20'
+                }`}
+              >
+                <div className={`flex items-center ${isCollapsed ? 'space-x-0' : 'space-x-3'}`}>
+                  <ClipboardList className={`h-4 w-4 shrink-0 transition-colors ${currentTab === 'team-planner' ? 'text-white' : 'text-slate-400 group-hover:text-accent-turquoise'}`} />
+                  {!isCollapsed && <span>Team Activity Plans</span>}
+                </div>
+              </button>
+
               {/* Activity Log History */}
               <button
                 onClick={() => onTabChange('consolidated-database')}

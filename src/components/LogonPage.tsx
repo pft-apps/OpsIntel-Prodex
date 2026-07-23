@@ -67,7 +67,8 @@ export default function LogonPage({ masterData, onLogin }: LogonPageProps) {
             group: regUser.group || '',
             assignedGroups: regUser.assignedGroups || [],
             assignedServices: regUser.assignedServices || [],
-            accessGroupAnalytics: regUser.accessGroupAnalytics || false
+            accessGroupAnalytics: regUser.accessGroupAnalytics || false,
+            accessPeriodClosing: regUser.accessPeriodClosing || false
           };
           const userRole = regObj.userLevel === 'Administrator' ? 'admin' : 'user';
           try {

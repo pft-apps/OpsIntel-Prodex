@@ -1,5 +1,5 @@
 import { useState, ChangeEvent, useEffect, DragEvent } from 'react';
-import { Shield, Settings, Users, FileText, Download, Briefcase, FileSpreadsheet, Sparkles, CheckCircle2, Edit2, Plus, Trash2, Save, X, Database, RefreshCw, FolderOpen, Upload, AlertTriangle, Lock, Key, Eye, EyeOff, Image, Clock, Calendar, Cloud, Edit, Trash } from 'lucide-react';
+import { Shield, Settings, Users, FileText, Download, Briefcase, FileSpreadsheet, Sparkles, CheckCircle2, Edit2, Plus, Trash2, Save, X, Database, RefreshCw, FolderOpen, Upload, AlertTriangle, Lock, Key, Eye, EyeOff, Image, Clock, Calendar, Cloud, Edit, Trash, Check } from 'lucide-react';
 import { MasterData, ActivityLog, UserAccount, EmployeeProfile } from '../types';
 import {
   db,
@@ -373,6 +373,18 @@ export default function SettingsTab({
     masterData.regularUserAccount?.userLevel || 'General User'
   );
   const [userAccessGroupAnalytics, setUserAccessGroupAnalytics] = useState<boolean>(false);
+  const [userAccessPeriodClosing, setUserAccessPeriodClosing] = useState<boolean>(false);
+
+  // Period Closing Management States
+  const [selectedPeriodMonth, setSelectedPeriodMonth] = useState<string>(() => {
+    const now = new Date();
+    const yr = Math.max(2026, now.getFullYear());
+    const mo = String(now.getMonth() + 1).padStart(2, '0');
+    return `${yr}-${mo}`;
+  });
+  const [periodTagAction, setPeriodTagAction] = useState<'closed' | 'open'>('closed');
+  const [periodSuccess, setPeriodSuccess] = useState('');
+  const [periodError, setPeriodError] = useState('');
   const [assignedGroups, setAssignedGroups] = useState<string[]>(
     masterData.regularUserAccount?.assignedGroups || []
   );
@@ -525,6 +537,57 @@ export default function SettingsTab({
     }
   };
 
+  const canAccessPeriodClosingCard = () => {
+    if (loggedInUser?.role === 'admin') return true;
+    const userAccount = masterData.regularUserAccount;
+    if (!userAccount) return false;
+    if (userAccount.userLevel === 'Administrator') return true;
+    if (userAccount.userLevel === 'General User') return false;
+    return userAccount.accessPeriodClosing || false;
+  };
+
+  const handleSavePeriodStatus = (monthStr?: string, statusTag?: 'closed' | 'open') => {
+    const targetMonth = monthStr || selectedPeriodMonth;
+    const targetStatus = statusTag || periodTagAction;
+
+    if (!targetMonth || !/^\d{4}-\d{2}$/.test(targetMonth)) {
+      setPeriodError('Please select a valid period (month).');
+      return;
+    }
+
+    const yearNum = parseInt(targetMonth.split('-')[0], 10);
+    if (yearNum < 2026) {
+      setPeriodError('Periods before year 2026 cannot be selected.');
+      return;
+    }
+
+    setPeriodError('');
+    const currentClosed = masterData.closedPeriods || [];
+    let updatedClosed: string[];
+
+    if (targetStatus === 'closed') {
+      if (!currentClosed.includes(targetMonth)) {
+        updatedClosed = [...currentClosed, targetMonth].sort();
+      } else {
+        updatedClosed = currentClosed;
+      }
+    } else {
+      updatedClosed = currentClosed.filter(p => p !== targetMonth);
+    }
+
+    const updatedMaster = {
+      ...masterData,
+      closedPeriods: updatedClosed
+    };
+
+    if (onUpdateMasterData) {
+      onUpdateMasterData(updatedMaster);
+    }
+
+    setPeriodSuccess(`Period ${targetMonth} successfully tagged as ${targetStatus.toUpperCase()}.`);
+    setTimeout(() => setPeriodSuccess(''), 4000);
+  };
+
   useEffect(() => {
     if (masterData.adminAccount) {
       setAdminUsername(masterData.adminAccount.username);
@@ -543,6 +606,8 @@ export default function SettingsTab({
       setUserUsername(masterData.regularUserAccount.username || '');
       setUserPassword(masterData.regularUserAccount.password || '');
       setUserLevel(masterData.regularUserAccount.userLevel || 'General User');
+      setUserAccessGroupAnalytics(masterData.regularUserAccount.accessGroupAnalytics || false);
+      setUserAccessPeriodClosing(masterData.regularUserAccount.accessPeriodClosing || false);
       setAssignedGroups(masterData.regularUserAccount.assignedGroups || []);
       setAssignedServices(masterData.regularUserAccount.assignedServices || []);
     } else {
@@ -553,6 +618,7 @@ export default function SettingsTab({
       setUserPassword('');
       setUserLevel('General User');
       setUserAccessGroupAnalytics(false);
+      setUserAccessPeriodClosing(false);
       setAssignedGroups([]);
       setAssignedServices([]);
     }
@@ -1047,14 +1113,17 @@ export default function SettingsTab({
     let services = assignedServices;
     let finalGroup = group;
     let accessAnalytics = userAccessGroupAnalytics;
+    let accessClosing = userAccessPeriodClosing;
 
     if (level === 'Administrator') {
       groups = masterData.group?.map(g => g.code) || [];
       services = masterData.services?.map(s => s.code) || [];
       accessAnalytics = true;
+      accessClosing = true;
       finalGroup = '00';
     } else if (level === 'General User') {
       accessAnalytics = false;
+      accessClosing = false;
     }
 
     const newUserObj: UserAccount = {
@@ -1066,7 +1135,8 @@ export default function SettingsTab({
       userLevel: level,
       assignedGroups: groups,
       assignedServices: services,
-      accessGroupAnalytics: accessAnalytics
+      accessGroupAnalytics: accessAnalytics,
+      accessPeriodClosing: accessClosing
     };
 
     try {
@@ -3332,6 +3402,123 @@ export default function SettingsTab({
         </div>
         )}
 
+        {/* Closing of Period (Month) Configuration Card */}
+        {canAccessPeriodClosingCard() && (
+          <div id="period-closing-settings-card" className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-6 col-span-full text-slate-900 animate-fadeIn mt-6">
+            <div>
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                <Lock className="h-5 w-5 text-indigo-600" /> Closing of Period (Month)
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Select an accounting or reporting Period (Month) and tag it as Open or Closed. Tagging a period as Closed prevents users from selecting past reporting dates from that period in the Employee Activity Logger.
+              </p>
+            </div>
+
+            {periodError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3 rounded-xl flex items-center gap-2 font-semibold">
+                <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                <span>{periodError}</span>
+              </div>
+            )}
+            {periodSuccess && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3 rounded-xl flex items-center gap-2 font-semibold animate-fadeIn">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>{periodSuccess}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Period Selector and Tag Controls */}
+              <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-indigo-600" /> Tag Period Status
+                </h4>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    Select Period (Month)
+                  </label>
+                  <input
+                    type="month"
+                    min="2026-01"
+                    value={selectedPeriodMonth}
+                    onChange={(e) => setSelectedPeriodMonth(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                    Set Status Tag
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSavePeriodStatus(selectedPeriodMonth, 'closed')}
+                      className="w-full py-2.5 px-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 border-none cursor-pointer"
+                    >
+                      <Lock className="h-3.5 w-3.5" /> Tag as Closed
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSavePeriodStatus(selectedPeriodMonth, 'open')}
+                      className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 border-none cursor-pointer"
+                    >
+                      <Check className="h-3.5 w-3.5" /> Tag as Open
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* List of Closed Periods */}
+              <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-rose-600" /> Currently Closed Periods
+                  </span>
+                  <span className="text-[10px] bg-rose-100 text-rose-700 px-2.5 py-0.5 rounded-full font-extrabold">
+                    {(masterData.closedPeriods || []).length} Closed
+                  </span>
+                </h4>
+
+                <div className="max-h-[180px] overflow-y-auto space-y-2 pr-1">
+                  {(masterData.closedPeriods || []).length === 0 ? (
+                    <div className="text-center py-8 text-xs text-slate-400 font-medium bg-white rounded-lg border border-dashed border-slate-200">
+                      No periods are currently tagged as closed. All months are open for logging.
+                    </div>
+                  ) : (
+                    (masterData.closedPeriods || []).map((periodStr) => {
+                      const [yr, mo] = periodStr.split('-');
+                      const dateObj = new Date(parseInt(yr, 10), parseInt(mo, 10) - 1, 1);
+                      const monthName = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+                      return (
+                        <div key={periodStr} className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
+                          <div>
+                            <span className="text-xs font-bold text-slate-800">{monthName}</span>
+                            <span className="text-[10px] text-slate-400 font-mono ml-2">({periodStr})</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 text-[10px] font-extrabold bg-red-100 text-red-700 rounded-full border border-red-200 uppercase">
+                              Closed
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleSavePeriodStatus(periodStr, 'open')}
+                              className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 underline bg-transparent border-none cursor-pointer"
+                            >
+                              Tag as Open
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       {/* Embedded Section: Maintenance of User Data */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-6 mt-6 col-span-full">
           <div>
@@ -3587,11 +3774,14 @@ export default function SettingsTab({
                             <select
                               value={userLevel}
                               onChange={(e) => {
-                                setUserLevel(e.target.value as any);
-                                if (e.target.value === 'General User') {
+                                const newLvl = e.target.value as any;
+                                setUserLevel(newLvl);
+                                if (newLvl === 'General User') {
                                   setUserAccessGroupAnalytics(false);
-                                } else if (e.target.value === 'Administrator') {
+                                  setUserAccessPeriodClosing(false);
+                                } else if (newLvl === 'Administrator') {
                                   setUserAccessGroupAnalytics(true);
+                                  setUserAccessPeriodClosing(true);
                                 }
                               }}
                               className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -3604,6 +3794,24 @@ export default function SettingsTab({
                             </select>
                           </div>
                           
+                          {/* Access to Period Closing Toggle */}
+                          <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <div>
+                              <div className="text-xs font-bold text-slate-800">Access to Period Closing</div>
+                              <div className="text-[10px] text-slate-500">Enable setting for closing of period (month)</div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={userLevel === 'Administrator' ? true : (userLevel === 'General User' ? false : userAccessPeriodClosing)}
+                                disabled={userLevel === 'Administrator' || userLevel === 'General User'}
+                                onChange={(e) => setUserAccessPeriodClosing(e.target.checked)}
+                              />
+                              <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
+                          </div>
+
                           {/* Access to Group Analytics Toggle */}
                           <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
                             <div>
@@ -3759,6 +3967,7 @@ export default function SettingsTab({
                                             setUserPassword(usr.password || '');
                                             setUserLevel(usr.userLevel || 'General User');
                                             setUserAccessGroupAnalytics(usr.accessGroupAnalytics || false);
+                                            setUserAccessPeriodClosing(usr.accessPeriodClosing || false);
                                             setAssignedGroups(usr.assignedGroups || []);
                                             setAssignedServices(usr.assignedServices || []);
                                             setUserError('');

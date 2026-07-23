@@ -17,6 +17,7 @@ import PerformanceTab from './components/PerformanceTab';
 import LogonPage from './components/LogonPage';
 import AuditTrackingTab from './components/AuditTrackingTab';
 import LeaveLogTab from './components/LeaveLogTab';
+import { ActivityPlannerTab } from './components/ActivityPlannerTab';
 import FloatingTimer from './components/FloatingTimer';
 import { parseJsonAsync } from './utils/jsonParser';
 import AdminCloudTab from './components/AdminCloudTab';
@@ -567,6 +568,7 @@ export default function App() {
           assignedGroups: userData.assignedGroups || [],
           assignedServices: userData.assignedServices || [],
           accessGroupAnalytics: userData.accessGroupAnalytics || false,
+          accessPeriodClosing: userData.accessPeriodClosing || false,
         }
       }));
     } else if (role === 'admin') {
@@ -706,6 +708,7 @@ export default function App() {
                 assignedGroups: userData.assignedGroups || [],
                 assignedServices: userData.assignedServices || [],
                 accessGroupAnalytics: userData.accessGroupAnalytics || false,
+                accessPeriodClosing: userData.accessPeriodClosing || false,
               }
             }));
           }
@@ -1746,8 +1749,8 @@ export default function App() {
       return;
     }
     const hasConsolidatedAccess = checkConsolidatedAccess();
-    if (!hasConsolidatedAccess && tabId.startsWith('consolidated-')) {
-      handleShowToast('Access Denied', 'Your user level does not have access to consolidated analytics.', 'error');
+    if (!hasConsolidatedAccess && (tabId.startsWith('consolidated-') || tabId === 'team-planner')) {
+      handleShowToast('Access Denied', 'Your user level does not have access to group analytics.', 'error');
       return;
     }
     setCurrentTab(tabId);
@@ -1756,7 +1759,7 @@ export default function App() {
   // Prevent users without access from staying on consolidated tabs if role or masterData updates
   useEffect(() => {
     const hasConsolidatedAccess = checkConsolidatedAccess();
-    if (!hasConsolidatedAccess && currentTab.startsWith('consolidated-')) {
+    if (!hasConsolidatedAccess && (currentTab.startsWith('consolidated-') || currentTab === 'team-planner')) {
       setCurrentTab('cover');
     }
   }, [loggedInUser, masterData.regularUserAccount, currentTab]);
@@ -2144,6 +2147,69 @@ export default function App() {
     setCurrentTab('log');
     addSystemLog(`Resumed activity timer for log ID: ${mainLogId}`, 'info');
     handleShowToast('Activity Resumed', `Continuing timer for activity ${mainLogId}.`, 'success');
+  };
+
+  // Convert Planned Activity to Activity Log and Start Timer
+  const handleConvertPlannedActivity = (logData: ActivityLog) => {
+    const generatedCode = logData.id;
+    
+    // 1. Add log to activityLogs
+    setActivityLogs((prev) => [logData, ...prev]);
+    saveActivityLogToFirestore(logData).catch(() => {});
+
+    // 2. Start running container for this converted log
+    const now = Date.now();
+    setContainers((prev) => {
+      const pausedContainers = prev.map((c) => {
+        if (c.timerState === 'running') {
+          let added = 0;
+          if (c.startTime) {
+            added = Math.floor((now - c.startTime) / 1000);
+          }
+          return {
+            ...c,
+            accumulatedSeconds: c.accumulatedSeconds + added,
+            startTime: null,
+            timerState: 'paused'
+          };
+        }
+        return c;
+      });
+
+      let filteredContainers = pausedContainers;
+      if (pausedContainers.length === 1 && !pausedContainers[0].activityLogCode && pausedContainers[0].timerState === 'idle') {
+        filteredContainers = [];
+      }
+
+      const newContainer: ContainerState = {
+        id: `container-${now}-${Math.floor(Math.random() * 1000)}`,
+        employeeId: logData.employeeId || loggedInUser?.username || '',
+        selectedBu: logData.bu || masterData.bu?.[0] || '',
+        selectedGroup: logData.group || '',
+        date: logData.date || new Date().toISOString().split('T')[0],
+        type: logData.type || 'Core',
+        activityName: logData.name || '',
+        desc: logData.desc || '',
+        refNumber: logData.referenceCode || '',
+        activityLogCode: generatedCode,
+        selectedOutput: logData.output || '',
+        volume: logData.volume !== undefined ? String(logData.volume) : '1',
+        isRework: logData.isRework !== undefined ? logData.isRework : null,
+        timerState: 'running',
+        startTime: now,
+        accumulatedSeconds: 0,
+        validationError: '',
+        consideredAccurate: true,
+        remarks: logData.remarks || ''
+      };
+
+      return [newContainer, ...filteredContainers];
+    });
+
+    setActiveTimerState('running');
+    setCurrentTab('log');
+    addSystemLog(`Converted planned activity to activity log ID: ${generatedCode} and started timer.`, 'success');
+    handleShowToast('Activity Converted & Started', `Activity ${generatedCode} converted and timer started!`, 'success');
   };
 
   // Run VBA calculation macro routines
@@ -3336,6 +3402,28 @@ export default function App() {
                   <CoverTab
                     masterData={masterData}
                     onNavigateToLog={() => handleTabChange('log')}
+                  />
+                )}
+                {currentTab === 'planner' && (
+                  <ActivityPlannerTab
+                    masterData={masterData}
+                    activityLogs={activityLogs}
+                    onSubmitLog={handleAddLog}
+                    onUpdateMasterData={handleUpdateMasterData}
+                    loggedInUser={loggedInUser}
+                    onConvertAndStartTimer={handleConvertPlannedActivity}
+                  />
+                )}
+                {currentTab === 'team-planner' && (
+                  <ActivityPlannerTab
+                    masterData={masterData}
+                    activityLogs={activityLogs}
+                    onSubmitLog={handleAddLog}
+                    onUpdateMasterData={handleUpdateMasterData}
+                    loggedInUser={loggedInUser}
+                    onConvertAndStartTimer={handleConvertPlannedActivity}
+                    isTeamView={true}
+                    title="Team Activity Plans"
                   />
                 )}
                 {currentTab === 'log' && (

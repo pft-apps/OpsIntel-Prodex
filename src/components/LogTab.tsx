@@ -63,6 +63,20 @@ export default function LogTab({
     return `${yyyy}-${mm}-${dd}`;
   };
 
+  const validateReportingDate = (dateVal: string): string => {
+    if (!dateVal) return 'Please choose a valid Reporting Date.';
+    const todayStr = getTodayDateString();
+    if (dateVal > todayStr) {
+      return 'Future reporting dates are not allowed under Reporting Date.';
+    }
+    const period = dateVal.substring(0, 7); // YYYY-MM
+    const closedPeriods = masterData.closedPeriods || [];
+    if (closedPeriods.includes(period)) {
+      return `Reporting Date belongs to a closed period (${period}). Selection not allowed.`;
+    }
+    return '';
+  };
+
   const getLogEmployeeInfo = (c: ContainerState) => {
     if (loggedInUser?.role === 'admin') {
       return {
@@ -95,6 +109,26 @@ export default function LogTab({
   // Check if a reference code is a duplicate in database or in other un-committed logs (duplicate check disabled)
   const isDuplicateRef = (ref: string, currentCode: string) => {
     return false;
+  };
+
+  // Check if an activity should be automatically tagged as Rework due to matching existing reference code, employee, service, and BU
+  const checkIsAutoRework = (c: ContainerState) => {
+    if (c.type !== 'Core' || !c.refNumber || !c.refNumber.trim() || !c.activityName || !c.selectedBu) {
+      return false;
+    }
+    const empInfo = getLogEmployeeInfo(c);
+    if (!empInfo.employeeId) return false;
+
+    const refTrimmed = c.refNumber.trim().toLowerCase();
+    return activityLogs.some((log) => 
+      log.id !== c.activityLogCode &&
+      log.type === 'Core' &&
+      log.referenceCode &&
+      log.referenceCode.trim().toLowerCase() === refTrimmed &&
+      (log.employeeId === empInfo.employeeId || (empInfo.employeeName && log.employeeName === empInfo.employeeName)) &&
+      log.name === c.activityName &&
+      log.bu === c.selectedBu
+    );
   };
 
   // Update specific container properties helper
@@ -133,8 +167,9 @@ export default function LogTab({
       updateContainer(id, { validationError: 'Please select an active Employee Profile.' });
       return;
     }
-    if (!c.date) {
-      updateContainer(id, { validationError: 'Please choose a valid Reporting Date.' });
+    const dateErr = validateReportingDate(c.date);
+    if (dateErr) {
+      updateContainer(id, { validationError: dateErr });
       return;
     }
     if (!c.activityName) {
@@ -294,6 +329,8 @@ export default function LogTab({
     const secs = calculateTotalSeconds(c.timerState, c.accumulatedSeconds, c.startTime, Date.now());
     const hoursVal = simulationMode ? (secs / 60) : (secs / 3600);
 
+    const isAutoRework = checkIsAutoRework(c);
+
     // Save hours directly to the same log item referenced by c.activityLogCode
     onSubmitLog({
       id: c.activityLogCode,
@@ -311,7 +348,7 @@ export default function LogTab({
       employeeTargetHours: empInfo.targetHours,
       output: 'Continue later',
       volume: 0,
-      isRework: false,
+      isRework: isAutoRework ? true : false,
       isTimerCommit: true
     });
 
@@ -344,9 +381,17 @@ export default function LogTab({
 
   // Proceed from choices to the Output Worksheet
   const handleProceedToOutput = (id: string) => {
-    updateContainer(id, {
-      timerState: 'collecting_output'
-    });
+    const c = containers.find(item => item.id === id);
+    if (c && checkIsAutoRework(c)) {
+      updateContainer(id, {
+        timerState: 'collecting_output',
+        isRework: true
+      });
+    } else {
+      updateContainer(id, {
+        timerState: 'collecting_output'
+      });
+    }
   };
 
   // Commit output and hours (Completing the activity)
@@ -365,7 +410,10 @@ export default function LogTab({
       return;
     }
 
-    if (c.isRework === null) {
+    const isAutoRework = checkIsAutoRework(c);
+    const finalIsRework = isAutoRework ? true : c.isRework;
+
+    if (finalIsRework === null) {
       alert('Please specify if this is for a Rework.');
       return;
     }
@@ -387,7 +435,9 @@ export default function LogTab({
       desc: c.desc || 'N/A',
       output: c.type === 'Non-Core' ? 'N/A' : c.selectedOutput,
       volume: numericVolume,
-      isRework: c.isRework,
+      isRework: finalIsRework,
+      consideredAccurate: finalIsRework ? (c.consideredAccurate || false) : undefined,
+      remarks: finalIsRework ? c.remarks : undefined,
       referenceCode: c.refNumber,
       targetHours: empInfo.targetHours,
       employeeTargetHours: empInfo.targetHours,
@@ -540,12 +590,15 @@ export default function LogTab({
           return (masterData.serviceOutput || []).filter((o) => o.serviceCode === selectedService.code);
         };
 
+        const isAutoRework = checkIsAutoRework(c);
+        const effectiveIsRework = isAutoRework ? true : c.isRework;
+
         const isCommitDisabled = 
           (c.type === 'Core' && !c.selectedOutput) || 
           !c.volume || 
           isNaN(parseInt(c.volume, 10)) || 
           parseInt(c.volume, 10) <= 0 || 
-          c.isRework === null;
+          effectiveIsRework === null;
 
         const currentSelectedEmp = masterData.employeeProfile.find(e => e.id === c.employeeId);
 
@@ -651,10 +704,19 @@ export default function LogTab({
                             id="reporting-date-input"
                             type="date"
                             value={c.date}
-                            onChange={(e) => updateContainer(c.id, { date: e.target.value, validationError: '' })}
+                            max={getTodayDateString()}
+                            onChange={(e) => {
+                              const newDate = e.target.value;
+                              const err = validateReportingDate(newDate);
+                              updateContainer(c.id, { date: newDate, validationError: err });
+                            }}
                             disabled={isFormLocked}
                             required
-                            className="w-full bg-white border border-slate-200 disabled:bg-slate-50 disabled:text-slate-500 rounded-xl pl-4 pr-10 py-3 text-xs text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-sm"
+                            className={`w-full bg-white border ${
+                              validateReportingDate(c.date)
+                                ? 'border-rose-300 focus:ring-rose-500/20 focus:border-rose-500'
+                                : 'border-slate-200 focus:ring-blue-500/20 focus:border-blue-500'
+                            } disabled:bg-slate-50 disabled:text-slate-500 rounded-xl pl-4 pr-10 py-3 text-xs text-slate-950 focus:outline-none transition shadow-sm`}
                           />
                           <Calendar className="absolute right-4 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
                         </div>
@@ -1052,15 +1114,22 @@ export default function LogTab({
                         <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
                           C. Is this for a Rework?
                         </label>
+                        {isAutoRework && (
+                          <div className="mb-3 bg-amber-50 border border-amber-200/80 p-2.5 rounded-lg text-xs font-semibold text-amber-800 flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                            <span>Automatically tagged as Rework: Existing reference code detected for this employee, activity, and business unit.</span>
+                          </div>
+                        )}
                         <div className="flex gap-3 mb-4">
                           <button
                             id="is-rework-no-btn"
                             type="button"
+                            disabled={isAutoRework}
                             onClick={() => updateContainer(c.id, { isRework: false })}
                             className={`flex-1 text-center py-2.5 rounded-lg text-xs font-bold transition-all border ${
-                              c.isRework === false
+                              effectiveIsRework === false
                                 ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-xs font-extrabold'
-                                : 'bg-white border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-350'
+                                : 'bg-white border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-350 disabled:opacity-40 disabled:cursor-not-allowed'
                             }`}
                           >
                             No, New Work
@@ -1068,9 +1137,10 @@ export default function LogTab({
                           <button
                             id="is-rework-yes-btn"
                             type="button"
+                            disabled={isAutoRework}
                             onClick={() => updateContainer(c.id, { isRework: true })}
                             className={`flex-1 text-center py-2.5 rounded-lg text-xs font-bold transition-all border ${
-                              c.isRework === true
+                              effectiveIsRework === true
                                 ? 'bg-rose-50 border-rose-500 text-rose-700 shadow-xs font-extrabold'
                                 : 'bg-white border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-350'
                             }`}
@@ -1078,7 +1148,7 @@ export default function LogTab({
                             Yes, Rework
                           </button>
                         </div>
-                        {c.isRework === true && (
+                        {effectiveIsRework === true && (
                           <div className="space-y-4 pt-4 border-t border-slate-100">
                             <label className="flex items-center gap-3 cursor-pointer">
                               <input

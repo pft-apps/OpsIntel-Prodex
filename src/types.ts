@@ -70,6 +70,7 @@ export interface UserAccount {
   assignedGroups?: string[];
   assignedServices?: string[];
   accessGroupAnalytics?: boolean;
+  accessPeriodClosing?: boolean;
 }
 
 export interface LeaveType {
@@ -95,6 +96,30 @@ export interface Holiday {
   name: string;
 }
 
+export interface PlannedActivity {
+  id: string;
+  date: string;
+  plannedDate?: string;
+  employeeId: string;
+  employeeName: string;
+  username: string;
+  group: string;
+  bu?: string;
+  type: 'Core' | 'Non-Core';
+  name: string;
+  desc: string;
+  output?: string;
+  volume?: number;
+  hours: number;
+  isRework?: boolean;
+  consideredAccurate?: boolean;
+  referenceCode?: string;
+  remarks?: string;
+  status: 'Draft' | 'Saved' | 'Converted';
+  convertedLogId?: string;
+  createdAt: string;
+}
+
 export interface MasterData {
   bu: string[];
   group: GroupItem[];
@@ -103,12 +128,14 @@ export interface MasterData {
   employeeProfile: EmployeeProfile[];
   leaveTypes?: LeaveType[];
   holidays?: Holiday[];
+  plannedActivities?: PlannedActivity[];
   serviceOutput?: ServiceOutputItem[];
   adminAccount?: UserAccount;
   regularUserAccount?: UserAccount;
   logo?: string;
   workingDays?: string[];
   workingHours?: number;
+  closedPeriods?: string[];
   autoSaveChannels12Enabled?: boolean;
   autoSaveChannels12Interval?: number;
   autoSyncChannels34Enabled?: boolean;

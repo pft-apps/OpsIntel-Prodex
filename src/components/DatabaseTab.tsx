@@ -1002,6 +1002,7 @@ export default function DatabaseTab({
                 <input
                   type="date"
                   value={editForm.date}
+                  max={new Date().toISOString().split('T')[0]}
                   onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
                   required
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"

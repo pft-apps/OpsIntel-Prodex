@@ -653,115 +653,124 @@ export default function LeaveLogTab({
         </div>
       )}
 
-      {/* Calendar Section for Holidays */}
+      {/* Holidays List Table Section */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-blue-600" /> Holiday Calendar & Tagging
-          </h3>
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-blue-600" /> Holiday Calendar & Tagging
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              List of configured holidays for activity logging, leave tracking, and capacity planning.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedHolidayDate(new Date().toISOString().split('T')[0]);
+              setHolidayName('');
+              setIsHolidayModalOpen(true);
+            }}
+            className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-xl text-xs transition shadow-md flex items-center gap-1.5 cursor-pointer self-start md:self-auto"
+          >
+            <Plus className="h-4 w-4" /> Add Holiday
+          </button>
         </div>
         
         {loggedInUser?.role === 'admin' && (
           <div className="px-6 pt-6 pb-0">
             <MasterBulkUpload
               typeLabel="Holidays"
-            expectedHeaders={['date', 'name']}
-            sampleRows={[
-              ['2025-01-01', 'New Year\'s Day'],
-              ['2025-12-25', 'Christmas Day']
-            ]}
-            onDataUploaded={(parsed, mode) => {
-              const mapped = parsed.map(item => ({
-                date: String(item.date || '').trim(),
-                name: String(item.name || '').trim()
-              })).filter(h => h.date && h.name);
+              expectedHeaders={['date', 'name']}
+              sampleRows={[
+                ['2026-01-01', 'New Year\'s Day'],
+                ['2026-12-25', 'Christmas Day']
+              ]}
+              onDataUploaded={(parsed, mode) => {
+                const mapped = parsed.map(item => ({
+                  date: String(item.date || '').trim(),
+                  name: String(item.name || '').trim()
+                })).filter(h => h.date && h.name);
 
-              let newHolidays = [...holidays];
-              if (mode === 'replace') {
-                newHolidays = [...mapped];
-              } else {
-                mapped.forEach(m => {
-                  const existingIdx = newHolidays.findIndex(h => h.date === m.date);
-                  if (existingIdx >= 0) {
-                    newHolidays[existingIdx] = m;
-                  } else {
-                    newHolidays.push(m);
-                  }
-                });
-              }
-              onUpdateMasterData({ ...masterData, holidays: newHolidays });
-            }}
-          />
+                let newHolidays = [...holidays];
+                if (mode === 'replace') {
+                  newHolidays = [...mapped];
+                } else {
+                  mapped.forEach(m => {
+                    const existingIdx = newHolidays.findIndex(h => h.date === m.date);
+                    if (existingIdx >= 0) {
+                      newHolidays[existingIdx] = m;
+                    } else {
+                      newHolidays.push(m);
+                    }
+                  });
+                }
+                onUpdateMasterData({ ...masterData, holidays: newHolidays });
+              }}
+            />
           </div>
         )}
 
         <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <button onClick={prevMonth} className="p-2 hover:bg-slate-100 rounded-full transition cursor-pointer">
-              <ChevronLeft className="h-5 w-5 text-slate-600" />
-            </button>
-            <h4 className="font-bold text-slate-900 text-lg">{monthYear}</h4>
-            <button onClick={nextMonth} className="p-2 hover:bg-slate-100 rounded-full transition cursor-pointer">
-              <ChevronRight className="h-5 w-5 text-slate-600" />
-            </button>
-          </div>
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-[11px] uppercase font-extrabold text-slate-500 border-b border-slate-200">
+                  <th className="px-6 py-3.5 w-1/3">Date</th>
+                  <th className="px-6 py-3.5">Holiday Description</th>
+                  <th className="px-6 py-3.5 w-24 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs">
+                {holidays.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-10 text-center text-slate-400 italic">
+                      No holidays uploaded or tagged yet. Click "Add Holiday" or use bulk upload above.
+                    </td>
+                  </tr>
+                ) : (
+                  [...holidays]
+                    .sort((a, b) => a.date.localeCompare(b.date))
+                    .map((h, idx) => {
+                      const dObj = new Date(h.date + 'T00:00:00');
+                      const formattedDate = isNaN(dObj.getTime())
+                        ? h.date
+                        : dObj.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
 
-          <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-xl overflow-hidden shadow-inner">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="bg-slate-50 py-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                {day}
-              </div>
-            ))}
-            {days.map((day, i) => {
-              if (day === null) return <div key={`empty-${i}`} className="bg-white/50 h-24 md:h-32"></div>;
-              
-              const dateObj = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
-              const dateStr = dateObj.toISOString().split('T')[0];
-              const holiday = holidays.find(h => h.date === dateStr);
-              const isToday = new Date().toISOString().split('T')[0] === dateStr;
-              const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-
-              return (
-                <div 
-                  key={day} 
-                  onClick={() => handleToggleHoliday(dateStr)}
-                  className={`bg-white h-24 md:h-32 p-2 transition-all duration-200 cursor-pointer relative group hover:z-10 ${
-                    holiday ? 'bg-amber-50/70 hover:bg-amber-100/80' : 'hover:bg-blue-50/50'
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full ${
-                      isToday ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : holiday ? 'text-amber-700' : isWeekend ? 'text-slate-400' : 'text-slate-700'
-                    }`}>
-                      {day}
-                    </span>
-                    {holiday && <Trash2 className="h-3 w-3 text-amber-400 opacity-0 group-hover:opacity-100 hover:text-rose-600 transition" />}
-                  </div>
-                  {holiday && (
-                    <div className="mt-2 text-[10px] font-bold text-amber-800 bg-amber-100/80 p-1.5 rounded border border-amber-200 leading-tight line-clamp-2">
-                      {holiday.name}
-                    </div>
-                  )}
-                  {!holiday && (
-                    <div className="mt-2 opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[9px] font-bold text-blue-500">
-                      <Plus className="h-2.5 w-2.5" /> Tag Holiday
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                      return (
+                        <tr key={`${h.date}-${idx}`} className="hover:bg-slate-50/80 transition-colors group">
+                          <td className="px-6 py-3.5 font-bold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                              <span>{formattedDate}</span>
+                              <span className="text-[10px] text-slate-400 font-mono font-normal">({h.date})</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-3.5 font-semibold text-slate-700">
+                            {h.name}
+                          </td>
+                          <td className="px-6 py-3.5 text-right">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = holidays.filter((_, i) => i !== holidays.findIndex(item => item.date === h.date && item.name === h.name));
+                                onUpdateMasterData({ ...masterData, holidays: updated });
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100 cursor-pointer"
+                              title="Delete Holiday"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                )}
+              </tbody>
+            </table>
           </div>
-          
-          <div className="mt-6 flex flex-wrap gap-4 text-xs font-semibold text-slate-500">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 bg-blue-600 rounded-full shadow-sm"></div> Today
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 bg-amber-100 border border-amber-200 rounded shadow-sm"></div> Holiday
-            </div>
-            <div className="flex items-center gap-1.5 italic text-slate-400">
-              * Click any day to tag/untag as holiday
-            </div>
+          <div className="mt-3 text-[11px] text-slate-400 font-medium text-right">
+            Total Configured Holidays: <span className="font-bold text-slate-700">{holidays.length}</span>
           </div>
         </div>
       </div>
@@ -772,18 +781,21 @@ export default function LeaveLogTab({
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-scaleUp overflow-hidden">
             <div className="bg-amber-50 px-6 py-4 border-b border-amber-100 flex items-center justify-between">
               <h3 className="font-bold text-amber-900 flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5 text-amber-600" /> Tag as Holiday
+                <CalendarIcon className="h-5 w-5 text-amber-600" /> Add / Tag Holiday
               </h3>
-              <button onClick={() => setIsHolidayModalOpen(false)} className="text-amber-400 hover:text-amber-600">
+              <button onClick={() => setIsHolidayModalOpen(false)} className="text-amber-400 hover:text-amber-600 cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Date Selected</label>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700">
-                  {new Date(selectedHolidayDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Holiday Date</label>
+                <input
+                  type="date"
+                  value={selectedHolidayDate}
+                  onChange={(e) => setSelectedHolidayDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
               </div>
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Holiday Description</label>
@@ -806,7 +818,7 @@ export default function LeaveLogTab({
                 Cancel
               </button>
               <button
-                disabled={!holidayName.trim()}
+                disabled={!holidayName.trim() || !selectedHolidayDate}
                 onClick={handleSaveHoliday}
                 className="px-8 py-2 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition shadow-lg shadow-amber-100 disabled:opacity-50 cursor-pointer text-sm"
               >

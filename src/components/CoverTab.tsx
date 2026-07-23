@@ -83,10 +83,12 @@ export default function CoverTab({ masterData, onNavigateToLog }: CoverTabProps)
               <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-2.5">
                 <h3 className="font-bold text-slate-900 flex items-center gap-2 text-xs uppercase tracking-wider">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-blue-50 text-[10px] font-extrabold text-blue-600 border border-blue-100">D</span>
-                  Individual Analytics
+                  Activity Planner
                 </h3>
                 <ol className="space-y-1.5 pl-5 list-decimal leading-relaxed">
-                  <li>This Menu shows reports and KPIs showing only data coming from the logs you have created.</li>
+                  <li>You can plan for activities that you want to do by creating activity plan items.</li>
+                  <li>An activity plan item can be directly converted to employee activity logs by clicking the convert button on saved activities on the activity plan table.</li>
+                  <li>A converted activity plan will be removed from the activity plan table once it is converted and will automatically run on the Employee Activity Logger.</li>
                 </ol>
               </div>
 
@@ -94,6 +96,17 @@ export default function CoverTab({ masterData, onNavigateToLog }: CoverTabProps)
               <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-2.5">
                 <h3 className="font-bold text-slate-900 flex items-center gap-2 text-xs uppercase tracking-wider">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-blue-50 text-[10px] font-extrabold text-blue-600 border border-blue-100">E</span>
+                  Individual Analytics
+                </h3>
+                <ol className="space-y-1.5 pl-5 list-decimal leading-relaxed">
+                  <li>This Menu shows reports and KPIs showing only data coming from the logs you have created.</li>
+                </ol>
+              </div>
+
+              {/* Category F */}
+              <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-2.5">
+                <h3 className="font-bold text-slate-900 flex items-center gap-2 text-xs uppercase tracking-wider">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-blue-50 text-[10px] font-extrabold text-blue-600 border border-blue-100">F</span>
                   Consolidated / Group Analytics
                 </h3>
                 <ol className="space-y-1.5 pl-5 list-decimal leading-relaxed">
@@ -102,10 +115,10 @@ export default function CoverTab({ masterData, onNavigateToLog }: CoverTabProps)
                 </ol>
               </div>
 
-              {/* Category F */}
+              {/* Category G */}
               <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-2.5">
                 <h3 className="font-bold text-slate-900 flex items-center gap-2 text-xs uppercase tracking-wider">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-blue-50 text-[10px] font-extrabold text-blue-600 border border-blue-100">F</span>
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-blue-50 text-[10px] font-extrabold text-blue-600 border border-blue-100">G</span>
                   Settings &amp; Preferences
                 </h3>
                 <ol className="space-y-1.5 pl-5 list-decimal leading-relaxed">
@@ -113,10 +126,10 @@ export default function CoverTab({ masterData, onNavigateToLog }: CoverTabProps)
                 </ol>
               </div>
 
-              {/* Category G */}
+              {/* Category H */}
               <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-2.5">
                 <h3 className="font-bold text-slate-900 flex items-center gap-2 text-xs uppercase tracking-wider">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-blue-50 text-[10px] font-extrabold text-blue-600 border border-blue-100">G</span>
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-blue-50 text-[10px] font-extrabold text-blue-600 border border-blue-100">H</span>
                   Audit &amp; Tracking
                 </h3>
                 <ol className="space-y-1.5 pl-5 list-decimal leading-relaxed">
