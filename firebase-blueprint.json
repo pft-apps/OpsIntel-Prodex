@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "User account credentials and metadata for secure modular access control",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string", "description": "Unique username" },
+        "password": { "type": "string", "description": "Hashed or raw password for local portal check" },
+        "employeeName": { "type": "string", "description": "Full name of the associated employee" },
+        "employeeCode": { "type": "string", "description": "Associated employee profile ID" },
+        "group": { "type": "string", "description": "Assigned operational department" },
+        "userLevel": { "type": "string", "enum": ["General User", "Lead", "Department Head", "Executive"] },
+        "assignedGroups": { "type": "array" },
+        "assignedServices": { "type": "array" }
+      },
+      "required": ["username", "password"]
+    },
+    "MasterData": {
+      "title": "MasterData",
+      "description": "System-wide settings and master reference arrays",
+      "type": "object",
+      "properties": {
+        "bu": { "type": "array" },
+        "workingHours": { "type": "number" },
+        "workingDays": { "type": "array" },
+        "logo": { "type": "string" }
+      }
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Granular operational and time-tracking transactional log record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "employeeId": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "bu": { "type": "string" },
+        "group": { "type": "string" },
+        "type": { "type": "string", "enum": ["Core", "Non-Core"] },
+        "name": { "type": "string" },
+        "hours": { "type": "number" },
+        "desc": { "type": "string" },
+        "output": { "type": "string" },
+        "volume": { "type": "number" },
+        "isRework": { "type": "boolean" },
+        "referenceCode": { "type": "string" },
+        "parentId": { "type": "string" },
+        "dateLogged": { "type": "string" }
+      },
+      "required": ["id", "date", "employeeId", "hours"]
+    },
+    "LeaveLog": {
+      "title": "LeaveLog",
+      "description": "Time-off, Official Business, and Undertime filing transaction record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "employeeId": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "category": { "type": "string", "enum": ["Leave", "Official Business", "Undertime"] },
+        "remarks": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "date", "employeeId", "category"]
+    },
+    "SystemAuditLog": {
+      "title": "SystemAuditLog",
+      "description": "Security and trace record auditing operational activities",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "user": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "warning", "error", "info"] }
+      },
+      "required": ["id", "timestamp", "user", "action"]
+    }
+  },
+  "firestore": {
+    "/users/{username}": {
+      "schema": "UserAccount",
+      "description": "User accounts with roles and permissions"
+    },
+    "/settings/master_data": {
+      "schema": "MasterData",
+      "description": "Central master settings and reference data"
+    },
+    "/activity_logs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "Granular operational task logs"
+    },
+    "/leave_logs/{logId}": {
+      "schema": "LeaveLog",
+      "description": "Filing records for time-off and OB"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "SystemAuditLog",
+      "description": "System trace auditing records"
+    }
+  }
+}

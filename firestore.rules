@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Rules for master configuration data
+    match /settings/master_data {
+      allow read, write: if true;
+    }
+    
+    // Rules for secure user accounts collection
+    match /users/{username} {
+      allow read, write: if true;
+    }
+    
+    // Rules for activity logs
+    match /activity_logs/{logId} {
+      allow read, write: if true;
+    }
+    
+    // Rules for leaves / time-off filings
+    match /leave_logs/{logId} {
+      allow read, write: if true;
+    }
+    
+    // Rules for audit traces
+    match /audit_logs/{logId} {
+      allow read, write: if true;
+    }
+    
+    // General fallback rule
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
