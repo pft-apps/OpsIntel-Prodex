@@ -6,7 +6,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: './',
+    base: '/pjftanap/',
     plugins: [
       {
         name: 'bypass-standalone-html-transform',
