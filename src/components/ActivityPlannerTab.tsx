@@ -44,11 +44,21 @@ export const ActivityPlannerTab: React.FC<ActivityPlannerTabProps> = ({
   const empProfile = useMemo(() => {
     const isDbAdmin = loggedInUser?.role === 'admin';
     const userAcc = masterData.regularUserAccount;
+    const userGroupVal = userAcc?.group || '';
+    const matchedGroup = (masterData.group || []).find(
+      (g) => g.code === userGroupVal || g.name === userGroupVal
+    );
+    const resolvedGroupName = isDbAdmin
+      ? 'All Groups (Admin)'
+      : matchedGroup
+      ? matchedGroup.name
+      : userGroupVal || masterData.group?.[0]?.name || 'Group 1';
+
     return {
       username: isDbAdmin ? 'admin' : (userAcc?.username || 'user'),
       employeeName: isDbAdmin ? 'Administrator' : (userAcc?.employeeName || 'Staff Member'),
       employeeCode: isDbAdmin ? 'ADM-001' : (userAcc?.employeeCode || 'EMP-001'),
-      group: isDbAdmin ? 'All Groups (Admin)' : (userAcc?.group || masterData.group?.[0]?.name || 'Group 1')
+      group: resolvedGroupName
     };
   }, [loggedInUser, masterData.regularUserAccount, masterData.group]);
 
